@@ -8,7 +8,7 @@ let generateToken = async (user) => {
     try{
 
         let options = {
-            expiresIn : "1hr"
+            expiresIn : "12hr"
         }
 
         let payload = {

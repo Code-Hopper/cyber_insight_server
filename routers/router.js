@@ -1,7 +1,8 @@
 import express from "express"
 import { authStudent } from "../middleware/auth.js"
 import { authStudentTool } from "../middleware/authTool.js"
-import { loginStudent, registerStudent, studentDashboard } from "../controllers/controller.js"
+import { validateStudentAuth } from "../middleware/validateStudentAuth.js"
+import { loginStudent, registerStudent, studentDashboard, validateStudent , runCompiler } from "../controllers/controller.js"
 
 
 let router = express()
@@ -15,5 +16,11 @@ router.post("/action/loginstudent", loginStudent)
 router.get("/my-account", authStudent, studentDashboard)
 
 router.get("/toolaccess/:id", authStudentTool, studentDashboard)
+
+router.get("/validateStudent", validateStudentAuth, validateStudent)
+
+// special tools route
+
+router.post("/api/runcode", authStudentTool , runCompiler)
 
 export { router }

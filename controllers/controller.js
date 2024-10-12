@@ -1,6 +1,6 @@
 import { studentModel } from "../models/studentSchema.js"
 import { generateToken } from "../middleware/generateToken.js"
-
+import { exec } from "child_process"
 import bcrypt from "bcrypt"
 
 let registerStudent = async (req, res) => {
@@ -75,7 +75,7 @@ let loginStudent = async (req, res) => {
 let studentDashboard = async (req, res) => {
     try {
 
-        console.log(req.admin)
+        // console.log(req.admin)
 
         res.status(200).json({ message: "access granted ! ", studentData: req.admin })
 
@@ -85,5 +85,28 @@ let studentDashboard = async (req, res) => {
     }
 }
 
+let validateStudent = async (req, res) => {
+    res.status(200).json({ access: true, message: "user can access tools" })
+}
 
-export { registerStudent, loginStudent, studentDashboard }
+
+let runCompiler = async (req, res) => {
+
+    const { code } = req.body;  // Extract code from request body
+
+    if (!code) {
+        return res.status(400).json({ error: "No code provided" });
+    }
+
+    // Execute the code using Node.js (you can use a sandbox for security)
+    exec(`node -e "${code}"`, (error, stdout, stderr) => {
+        if (error) {
+            return res.status(500).json({ output: stderr });
+        }
+        res.status(200).json({ output: stdout || stderr });
+    });
+
+}
+
+
+export { registerStudent, loginStudent, studentDashboard, validateStudent, runCompiler }

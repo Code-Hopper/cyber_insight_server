@@ -14,7 +14,8 @@ let corsOption = {
 }
 
 app.use(cors(corsOption))
-
+app.use(express.static("/courseUploads"))
+app.use('/courseUploads', express.static('courseUploads'));
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json())
 

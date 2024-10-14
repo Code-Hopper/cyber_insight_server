@@ -2,10 +2,17 @@ import { studentModel } from "../models/studentSchema.js"
 import { adminModel } from "../models/adminSchema.js"
 import { generateToken } from "../middleware/generateToken.js"
 import { generateAdminToken } from "../middleware/generateTokenAdmin.js"
-import { exec } from "child_process"
 import bcrypt from "bcrypt"
-import multer from "multer"
 import { courseModel } from "../models/courseSchema.js"
+
+import path from "path";
+import fs from "fs";
+import { exec } from "child_process";
+import { fileURLToPath } from "url";
+
+// Define __dirname for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 let registerStudent = async (req, res) => {
 
@@ -95,21 +102,33 @@ let validateStudent = async (req, res) => {
 
 
 let runCompiler = async (req, res) => {
-
-    const { code } = req.body;  // Extract code from request body
+    const { code } = req.body;
 
     if (!code) {
         return res.status(400).json({ error: "No code provided" });
     }
 
-    // Execute the code using Node.js (you can use a sandbox for security)
-    exec(`node -e "${code}"`, (error, stdout, stderr) => {
-        if (error) {
-            return res.status(500).json({ output: stderr });
-        }
-        res.status(200).json({ output: stdout || stderr });
-    });
+    // Create a temporary file to save the code
+    const tempFilePath = path.join(__dirname, 'temp.js');
 
+    // Write the code to the file
+    fs.writeFile(tempFilePath, code, (err) => {
+        if (err) {
+            return res.status(500).json({ error: "Failed to write temporary file" });
+        }
+
+        // Execute the file using Node.js
+        exec(`node ${tempFilePath}`, (error, stdout, stderr) => {
+            // Clean up the temporary file
+            fs.unlink(tempFilePath, () => { });
+
+            if (error) {
+                return res.status(500).json({ output: stderr });
+            }
+
+            res.status(200).json({ output: stdout || stderr });
+        });
+    });
 }
 
 let passwordManager = async (req, res) => {
@@ -277,4 +296,34 @@ let getAllCourses = async (req, res) => {
     }
 }
 
-export { registerStudent, loginStudent, studentDashboard, validateStudent, runCompiler, passwordManager, passwordManagerData, passwordDelete, adminLogin, adminDashboard, displayAllStudent, createCourse , getAllCourses }
+// Delete a course by ID
+const deleteCourse = async (req, res) => {
+    const { id } = req.params;  // Get course ID from request params
+    console.log("delete course")
+    try {
+        const deletedCourse = await courseModel.findByIdAndDelete(id);  // Delete course by ID
+        if (!deletedCourse) {
+            return res.status(404).json({ message: 'Course not found' });
+        }
+        res.status(200).json({ message: 'Course deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting course:', error);
+        res.status(500).json({ message: 'Error deleting course' });
+    }
+};
+
+// Delete student by ID
+let deleteStudent = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const deletedStudent = await studentModel.findByIdAndDelete(id);
+        if (!deletedStudent) {
+            return res.status(404).json({ message: 'Student not found' });
+        }
+        res.json({ message: 'Student deleted successfully', deletedStudent });
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting student', error });
+    }
+}
+
+export { registerStudent, loginStudent, studentDashboard, validateStudent, runCompiler, passwordManager, passwordManagerData, passwordDelete, adminLogin, adminDashboard, displayAllStudent, createCourse, getAllCourses, deleteCourse, deleteStudent }

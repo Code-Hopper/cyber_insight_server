@@ -4,7 +4,7 @@ import path from "path"; // Import path module
 import { authStudent } from "../middleware/auth.js";
 import { authStudentTool } from "../middleware/authTool.js";
 import { validateStudentAuth } from "../middleware/validateStudentAuth.js";
-import { loginStudent, registerStudent, studentDashboard, validateStudent, runCompiler, passwordManager, passwordManagerData, passwordDelete, adminLogin, adminDashboard, displayAllStudent, createCourse, getAllCourses } from "../controllers/controller.js";
+import { loginStudent, registerStudent, studentDashboard, validateStudent, runCompiler, passwordManager, passwordManagerData, passwordDelete, adminLogin, adminDashboard, displayAllStudent, createCourse, getAllCourses, deleteCourse, deleteStudent } from "../controllers/controller.js";
 import { authAdmin } from "../middleware/authAdmin.js";
 
 let router = express();
@@ -61,5 +61,12 @@ const upload = multer({
 router.post('/admin/dashboard/createCourse', authAdmin, upload.single('thumbnail'), createCourse)
 
 router.get('/admin/dashboard/allCourses', getAllCourses)
+
+// Route to delete a course by ID
+router.delete('/admin/dashboard/coursedelete/:id', authAdmin, deleteCourse)
+
+router.delete('/admin/dashboard/studentsdelete/:id', authAdmin, deleteStudent)
+
+
 
 export { router };

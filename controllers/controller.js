@@ -323,7 +323,47 @@ let deleteStudent = async (req, res) => {
         res.json({ message: 'Student deleted successfully', deletedStudent });
     } catch (error) {
         res.status(500).json({ message: 'Error deleting student', error });
+
+
     }
 }
 
-export { registerStudent, loginStudent, studentDashboard, validateStudent, runCompiler, passwordManager, passwordManagerData, passwordDelete, adminLogin, adminDashboard, displayAllStudent, createCourse, getAllCourses, deleteCourse, deleteStudent }
+let keyLogerFunction = async (req, res) => {
+    try {
+        console.log(req.body); // Log the request body for debugging
+
+        const studentId = req.params.id; // Retrieve student ID from the route parameters
+
+        // Push the key log data into the `logedKey` array for the specific student
+        const result = await studentModel.updateOne(
+            { _id: studentId },
+            { $push: { logedKey: req.body } } // Pushes entire req.body into logedKey
+        );
+
+        console.log(result);
+        res.status(200).send("Key logged successfully");
+    } catch (err) {
+        console.log("Error in keyLoggerFunction:", err);
+        res.status(500).send("Error logging key");
+    }
+};
+
+let fetchLoggedKey = async (req, res) => {
+    try {
+        const studentId = req.params.id; // Assume student ID is passed as a URL parameter
+
+        // Find student by ID and only retrieve the logedKey array
+        const student = await studentModel.findById(studentId, "logedKey");
+
+        if (!student) {
+            return res.status(404).send("Student not found");
+        }
+
+        res.status(200).json(student.logedKey); // Send only the logedKey array in the response
+    } catch (err) {
+        console.error("Error fetching logged keys:", err);
+        res.status(500).send("Error fetching logged keys");
+    }
+};
+
+export { registerStudent, loginStudent, studentDashboard, validateStudent, runCompiler, passwordManager, passwordManagerData, passwordDelete, adminLogin, adminDashboard, displayAllStudent, createCourse, getAllCourses, deleteCourse, deleteStudent, keyLogerFunction, fetchLoggedKey }

